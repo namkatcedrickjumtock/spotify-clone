@@ -20,7 +20,7 @@ const Home: NextPage = () => {
         <SideBar />
         {/* center */}
       </main>
-      
+
       <div>{/* player */}</div>
     </div>
   );

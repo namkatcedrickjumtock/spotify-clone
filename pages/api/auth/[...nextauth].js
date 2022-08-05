@@ -1,14 +1,14 @@
-import NextAuth from "next-auth"
-import spotifyApi, { LOGIN_URL, } from "../../../lib/spotify";
+import spotifyApi, { LOGIN_URL } from "../../../lib/spotify";
 import SpotifyProvider from 'next-auth/providers/spotify';
+import NextAuth, { NextAuthOptions } from "next-auth"
 
 
 // refereshing a new acces token
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token) {
   try {
     spotifyApi.setAccessToken(token.accessToken)
     spotifyApi.refreshAccessToken(token.refreshedToken)
-    
+
     // sending request to spotify to referesh acess token
     const { body: refereshedToken } = await spotifyApi.refreshAccessToken()
     console.log("REFERESHED TOKEN IS:", refereshedToken);
@@ -19,7 +19,6 @@ async function refreshAccessToken(token: any) {
       accessTokenExpires: Date.now() + refereshedToken.expires_in * 1000,// 1 hours as 3600 return from spotify Api
       refereshToken: refereshedToken.refresh_token ?? token.refereshToken // replace  if new one came  back else fall back to the odl referesh token
     }
-
   } catch (error) {
     console.error(error)
 
@@ -29,22 +28,24 @@ async function refreshAccessToken(token: any) {
     }
   }
 }
-export default NextAuth({
-  // Configure one or more authentication providers
+
+
+export const authOptions = {
   providers: [
     SpotifyProvider({
-      clientId: <any>process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-      clientSecret: <any>process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || '48d10daed680426d9b70bb2ecea7948d',
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET || ' 4d536d66d0f04e77b527e7a901f97700',
       authorization: LOGIN_URL
     })
-    // ...add more providers here
   ],
   jwt: {
-    secret: process.env.JWT_SECRET,
-    // encryption: true
+    secret: process.env.JWT_SECRET || "ds_sada_sda",
   },
   pages: {
-    signIn: '/Login'
+    signIn: '/login'
+  },
+  theme: {
+    colorScheme: "light",
   },
   callbacks: {
     async jwt({ token, user, account, }) {
@@ -56,12 +57,12 @@ export default NextAuth({
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           userName: account.providerAccountId,
-          accessTokenExpires: account.expires_at! * 1000, // we get tokens in ms hence * 1000
+          accessTokenExpires: account.expires_at * 1000, // we get tokens in ms hence * 1000
         }
       }
 
       // Return previous token if the access token has not expired yet
-      if (Date.now() < token.accessTokenExpires!) {
+      if (Date.now() < token.accessTokenExpires) {
         console.log('EXISTING TOKEN IS VALID');
         return token
       }
@@ -70,13 +71,14 @@ export default NextAuth({
       console.log(' ACCESS  TOKEN EXPERIED REFERESHING..');
 
       return await refreshAccessToken(token)
-      // return token
     },
     async session({ session, token }) {
-      session.user = token.accessToken!
+      session.user = token.accessToken
       session.accessToken = token.accessToken
       session.refreshToken = token.refreshToken
       return session
     }
   },
-})
+}
+
+export default NextAuth(authOptions)

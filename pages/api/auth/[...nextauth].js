@@ -33,8 +33,8 @@ async function refreshAccessToken(token) {
 export const authOptions = {
   providers: [
     SpotifyProvider({
-      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || '48d10daed680426d9b70bb2ecea7948d',
-      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET || ' 4d536d66d0f04e77b527e7a901f97700',
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
       authorization: LOGIN_URL
     })
   ],

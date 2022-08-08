@@ -1,84 +1,72 @@
-import spotifyApi, { LOGIN_URL } from "../../../lib/spotify";
-import SpotifyProvider from 'next-auth/providers/spotify';
-import NextAuth, { NextAuthOptions } from "next-auth"
+import NextAuth from "next-auth";
+import SpotifyProvider from "next-auth/providers/spotify";
+import spotifyApi, { SPOTIFY_AUTHORIZATION_URL } from "../../../lib/spotify";
+import "dotenv/config";
 
-
-// refereshing a new acces token
 async function refreshAccessToken(token) {
   try {
-    spotifyApi.setAccessToken(token.accessToken)
-    spotifyApi.refreshAccessToken(token.refreshedToken)
+    spotifyApi.setAccessToken(token.accessToken);
+    spotifyApi.refreshAccessToken(token.refreshedToken);
 
     // sending request to spotify to referesh acess token
-    const { body: refereshedToken } = await spotifyApi.refreshAccessToken()
-    console.log("REFERESHED TOKEN IS:", refereshedToken);
+    const { body: refereshedTokens } = await spotifyApi.refreshAccessToken();
+    console.log("REFERESHED TOKEN IS:", refereshedTokens);
 
     return {
       ...token,
-      accessToken: refereshedToken.access_token,
-      accessTokenExpires: Date.now() + refereshedToken.expires_in * 1000,// 1 hours as 3600 return from spotify Api
-      refereshToken: refereshedToken.refresh_token ?? token.refereshToken // replace  if new one came  back else fall back to the odl referesh token
-    }
+      accessToken: refereshedTokens.access_token,
+      accessTokenExpires: Date.now() + refereshedToken.expires_in * 1000, // 1 hours as 3600 return from spotify Api
+      refreshToken: refereshedTokens.refresh_token ?? token.refreshToken, // Fall back to old refresh token
+    };
   } catch (error) {
-    console.error(error)
-
+    console.log(error);
     return {
       ...token,
-      error: "RefereshAcessTokenError"
-    }
+      error: "RefreshAccessTokenError",
+    };
   }
 }
-
 
 export const authOptions = {
   providers: [
     SpotifyProvider({
-      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || '48d10daed680426d9b70bb2ecea7948d',
-      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET || ' 4d536d66d0f04e77b527e7a901f97700',
-      authorization: LOGIN_URL
-    })
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+      authorization: SPOTIFY_AUTHORIZATION_URL,
+    }),
   ],
-  jwt: {
-    secret: process.env.JWT_SECRET || "ds_sada_sda",
-  },
+
+  secret: process.env.JWT_SECRET,
   pages: {
-    signIn: '/login'
-  },
-  theme: {
-    colorScheme: "light",
+    signIn: "/Login",
   },
   callbacks: {
-    async jwt({ token, user, account, }) {
-
-      // if innitial user signed in
+    async jwt({ token, user, account }) {
+      // Initial sign in
       if (account && user) {
         return {
           ...token,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          userName: account.providerAccountId,
           accessTokenExpires: account.expires_at * 1000, // we get tokens in ms hence * 1000
-        }
+          refreshToken: account.refresh_token,
+          user,
+        };
       }
 
       // Return previous token if the access token has not expired yet
       if (Date.now() < token.accessTokenExpires) {
-        console.log('EXISTING TOKEN IS VALID');
-        return token
+        return token;
       }
 
-      // Access token has expired, referesh it
-      console.log(' ACCESS  TOKEN EXPERIED REFERESHING..');
-
-      return await refreshAccessToken(token)
+      // Access token has expired, try to update it
+      return refreshAccessToken(token);
     },
     async session({ session, token }) {
-      session.user = token.accessToken
-      session.accessToken = token.accessToken
-      session.refreshToken = token.refreshToken
-      return session
-    }
+      session.user = token.user;
+      session.accessToken = token.accessToken;
+      session.error = token.error;
+      return session;
+    },
   },
-}
-
-export default NextAuth(authOptions)
+};
+export default NextAuth(authOptions);
